@@ -1,0 +1,19 @@
+{
+    "config" : {
+        "token": "",
+        "commandCooldown": 5000,
+        "commandPrefix": "!",
+        "commandChannels": ["spoopy-commands", "spoopy-testing"],
+        "trafficChannel": "traffic",
+        "DbConnection": {
+            "user": "",
+            "host": "",
+            "database": "",
+            "password": "",
+            "port": 5432
+        },
+
+        "debug": false
+
+    }
+}
