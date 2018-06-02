@@ -219,7 +219,7 @@ parseCommand = async (msg, uID) =>{
                 commandRankings(msg);
             break;
         case 'add8ball':
-            if(await restrictCommand(msg, uID, AdminRank.User, false))
+            if(await restrictCommand(msg, uID, AdminRank.Admin, false))
                 commandAdd8ball(msg, uID)
             break;
         case 'setadminlevel':
