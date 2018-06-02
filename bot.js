@@ -292,7 +292,7 @@ commandCommands = async (msg) =>{
         message += "**Quotes**\n"
         message += '!quote - *Displays a random quote*\n'
         message += '!addquote [@quotedperson] ["quote"] - *Adds a quote to the database attributed to the supplied person* Ex: !addquote @Crexfu "The burping here is an epidemeic"\n';
-        message += 'Have any additional questions or issues with the bot? Let me know <214250794701160448>'
+        message += 'Have any additional questions or issues with the bot? Let me know. *Crexfu*'
         msg.channel.send(message)
         .then(resp =>{
             resp.delete(20000);
