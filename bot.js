@@ -291,7 +291,7 @@ commandCommands = async (msg) =>{
         message += "!rankings - *Displays rankings of the top 10 snail salters*\n";
         message += "**Quotes**\n"
         message += '!quote - *Displays a random quote*\n'
-        message += '!addquote [@quotedperson] ["quote"] - *Adds a quote to the database attributed to the supplied person* Ex: !addquote @Crexfu "The burping here is an epidemeic"\n';
+        message += '!addquote [@quotedperson] ["quote"] - *Adds a quote to the database attributed to the supplied person* Ex: !addquote @Crexfu "The burping here is an epidemic"\n';
         message += 'Have any additional questions or issues with the bot? Let me know. *Crexfu*'
         msg.channel.send(message)
         .then(resp =>{
@@ -740,6 +740,7 @@ async function commandAddQuote(msg, uID) {
         }
 
         let quote = `${matched[1]}`
+        quote = quote.replace("'", "''");
         commandString = msg.cleanContent.substring(0, matched.index);
         
         let mArgs = getCommandArgs(commandString);
