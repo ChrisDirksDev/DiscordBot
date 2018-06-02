@@ -320,7 +320,7 @@ commandSetAdminLevel = async (msg, uID) => {
         })
 
         if (filterd.size != 1) {
-            const reg = /<@(.*?)>/;
+            const reg = /<@!(.*?)>/;
             const matched = msg.content.match(reg);
             if (!matched) {
                 console.log("Could not identify user");
