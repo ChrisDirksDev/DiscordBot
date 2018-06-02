@@ -41,7 +41,7 @@ initClient = () =>{
     client = new Client();
 
     client.on('ready', () => {
-        console.log(`Logged in as ${client.user.tag}!`);
+        console.log(`Logged in as ${client.user.username}!`);
         init();
       });
     
@@ -156,32 +156,28 @@ checkMessage = async (msg) => {
             log("Parse Message aborted. Db connection down.")
             return;
         }
-    
-        //Check for cached users
-        let uID = undefined;
-        //TODO: Should not be a foreach
-        cachedUsers.forEach(element => {
-            if(element.discordID == msg.author.id){
-                console.log("UserCached", msg.author.tag)
-                uID = element.id;
-            }
-        });
+        let uID = -1;
+        let resp = checkCacheByDID(msg.author.id);
         
         //Not Cached
-        if(!uID){
-    
+        if(resp){
+
+            uID = resp.id;
+
+        }else{
+
             //Grab id from db
-            let resp = await repo.dbGetIDByDID(msg.author.id);
+            let resp = await repo.getIDByDID(msg.author.id);
             uID = resp.Result;
     
             //New user
             if(uID == -1){
-               let resp = await repo.addUser(msg.author.id, msg.author.tag);
+               let resp = await repo.addUser(msg.author.id, msg.author.username);
                uID = resp.Result;
             }
             
             //Cache user
-            cachedUsers.push({"discordID":msg.author.id, "id":uID});
+            cachedUsers.push({"discordID":msg.author.id, "id":uID, "tag": msg.author.username});
         }
         
         if(msg.content.startsWith(config.commandPrefix) && Date.now() > nextCommand) {
@@ -202,6 +198,10 @@ parseCommand = async (msg, uID) =>{
     const command = msgParts[0].replace("!",'');
 
     switch (command.toLowerCase()) {
+        case 'commands':
+            if(await restrictCommand(msg, uID, AdminRank.User, true))
+                commandCommands(msg);
+            break;
         case 'roll':
             if(await restrictCommand(msg, uID, AdminRank.User))
                 commandRoll(msg, uID);
@@ -274,6 +274,35 @@ getCommandArgs = (data) => {
     return msgParts;
 }
 
+commandCommands = async (msg) =>{
+    try {
+        cmdCooldown(20000)
+        let message = "";
+        message += "The bot has the following general commands:\n";
+        message += "**Dice Rolling**\n";
+        message += "!roll - *Rolls a number between 1 and 20*\n";
+        message += "!roll [number] - *Rolls a number between 1-number* Ex: !roll 100\n";
+        message += "!roll [number1] [number2] - *Rolls a number between number1 - number2* Ex: !roll 0 75\n";
+        message += "**8 Ball**\n";
+        message += '!8ball ["question?"] - *Responds with an answer to your yes or no question* Ex: !8ball "Will I ever be a pokemon master?"\n';
+        message += '!add8ball ["response"] - *Adds the response to the possible replys when asking an 8ball question* Ex: !add8ball "heck no"\n';
+        message += "**Rankings**\n";
+        message += "!rank - *Displays your rankings in the snail salting activity*\n";
+        message += "!rankings - *Displays rankings of the top 10 snail salters*\n";
+        message += "**Quotes**\n"
+        message += '!quote - *Displays a random quote*\n'
+        message += '!addquote [@quotedperson] ["quote"] - *Adds a quote to the database attributed to the supplied person* Ex: !addquote @Crexfu "The burping here is an epidemeic"\n';
+        message += 'Have any additional questions or issues with the bot? Let me know <214250794701160448>'
+        msg.channel.send(message)
+        .then(resp =>{
+            resp.delete(20000);
+        })
+
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 commandSetAdminLevel = async (msg, uID) => {
     try {
         log("Set Admin Level")
@@ -283,32 +312,33 @@ commandSetAdminLevel = async (msg, uID) => {
             console.log("invalid arg amount", mArgs.length)
             return
         }
-    
-        //TODO: use regex here
-        let userID = mArgs[0].substring(2, mArgs[0].length-1);
+
+        let userName = mArgs[0].substring(1);
+
+        let filterd = msg.guild.members.filter(member =>{
+            return member.displayName == userName;
+        })
+
+        if (filterd.size != 1) {
+            return;
+        }
+
+        let userID = filterd.entries().next().value[0];
+
         let adminLevel = parseInt(mArgs[1]);
 
-        let resp = await repo.GetAdminLevels()
+        let resp = await repo.getAdminLevels()
 
         if (!adminLevel ||!resp.Result.includes(adminLevel)) {
             console.log("invalid args", mArgs)
             return;
         }
-    
-        client.fetchUser(userID)
-        .then((resp,err)=>{
-            if(err !== undefined){
-                throw err
-            }
-    
-            let tag = resp.tag;
-    
-            return repo.dbGetIDByDID(tag);
-        })
+   
+        repo.getIDByDID(userID)
         .then((resp) =>{
             //If that user is not in the db
             //TODO: force add user to db
-            if (!resp.Error) {
+            if (resp.Error) {
                 throw resp.Error
             }
             return repo.updateAdminLevel(resp.Result, adminLevel)
@@ -421,7 +451,7 @@ commandRoll = (msg, uID) => {
         console.log("D20");
         const roll = Math.round(((Math.random() * 20) + 1));
         console.log(roll);
-        channel.send(`${rollLabel}Rolling a **d20**\n${user} rolled: **${roll}**`)
+        channel.send(`${rollLabel}Rolling a **D20**\n${user} rolled: **${roll}**`)
         return;
     }
 
@@ -431,7 +461,7 @@ commandRoll = (msg, uID) => {
         console.log("d"+size);
         const roll = Math.floor(((Math.random() * size) + 1));
         console.log(roll);
-        channel.send(`${rollLabel}Rolling a **d${size}**\n${user} rolled: **${roll}**`)
+        channel.send(`${rollLabel}Rolling a **D${size}**\n${user} rolled: **${roll}**`)
         return;
     }
 
@@ -521,7 +551,7 @@ snailLogic = async(msg, uID) =>{
         }
     
         let member = msg.member;
-        let resp = await repo.dbGetSnailCountByID(uID);
+        let resp = await repo.getSnailCountByID(uID);
 
         let snailCount = resp.Result;
         if(snailCount == -1){
@@ -616,18 +646,35 @@ async function commandQuote(msg) {
     try {
         msg.delete();
         cmdCooldown();
-        repo.getQuotes()
-        .then(resp =>{
-            if (resp.Result.length == 0) {
-                throw "No Quotes";
-            }
-            let ids = resp.Result.map(quote =>{
-                return quote.ID;
-            })
-            rand = randomIntFromInterval(0, resp.Result.length-1);
-            const chosenQuote = resp.Result[rand];
-            return msg.channel.send(`Quote #${chosenQuote.ID}: **${chosenQuote.User}** - *"${chosenQuote.Quote}"*`)
+        let resp = await repo.getQuotes()
+
+        if (resp.Result.length == 0) {
+            return msg.channel.send(`No Quotes`)
+        }
+        let ids = resp.Result.map(quote =>{
+            return quote.ID;
         })
+        rand = randomIntFromInterval(0, resp.Result.length-1);
+        const chosenQuote = resp.Result[rand];
+
+        let name = "";
+        let dID = -1;
+        let ret  = checkCacheByID(chosenQuote.User);
+
+        if (!ret) {
+            ret = await repo.getDIDByID(chosenQuote.User)
+            dID = ret.Result
+        }else{
+            dID = ret.discordID;
+        }
+
+        if(dID != -1){
+           name = (await client.fetchUser(dID)).username
+        }else{
+            name = chosenQuote.Name
+        }
+
+        msg.channel.send(`Quote #${chosenQuote.ID}: **${name}** - *"${chosenQuote.Quote}"*`)
         .then(resp =>{
             resp.delete(10000);
         })
@@ -638,20 +685,62 @@ async function commandQuote(msg) {
 
 }
 
+checkCacheByID = (id) => {
+    //Check for cached users
+    let data = null;
+    //TODO: Should not be a foreach
+    cachedUsers.forEach(element => {
+        if(element.id == id){
+            console.log("UserCached", element.tag)
+            data = element
+        }
+    });
+
+    return data
+}
+
+checkCacheByTag = (tag) => {
+    //Check for cached users
+    let data = null;
+    //TODO: Should not be a foreach
+    cachedUsers.forEach(element => {
+        if(element.tag == tag){
+            console.log("UserCached", element.tag)
+            data = element
+        }
+    });
+
+    return data
+}
+
+checkCacheByDID = (DID) => {
+    //Check for cached users
+    let data = null;
+    //TODO: Should not be a foreach
+    cachedUsers.forEach(element => {
+        if(element.discordID == DID){
+            console.log("UserCached", element.tag)
+            data = element
+        }
+    });
+
+    return data
+}
+
 async function commandAddQuote(msg, uID) {
     try {
         msg.delete();
         const reg = /"(.*?)"/;
-        const matched = msg.content.match(reg);
+        const matched = msg.cleanContent.match(reg);
         
-        let commandString = msg.content;
+        let commandString = msg.cleanContent;
         if(!matched){
             console.log("No Valid quote found");
             return;
         }
 
         let quote = `${matched[1]}`
-        commandString = msg.content.substring(0, matched.index);
+        commandString = msg.cleanContent.substring(0, matched.index);
         
         let mArgs = getCommandArgs(commandString);
         if (mArgs.length != 1) {
@@ -659,7 +748,29 @@ async function commandAddQuote(msg, uID) {
             return;
         }
 
-        repo.addQuote(mArgs[0], quote, uID)
+        let userName = mArgs[0].substring(1);
+
+        let filterd = msg.guild.members.filter(member =>{
+            return member.displayName == userName;
+        })
+
+        if (filterd.size != 1) {
+            console.log("No member found with name", userName);
+            return;
+        }
+
+        let userID = filterd.entries().next().value[0];
+        let userTag = filterd.entries().next().value[1].user.tag;
+        let mName = filterd.entries().next().value[1].user.username;
+
+        let resp = await repo.getIDByDID(userID)
+
+        let mID = resp.Result;
+        if(mID == -1){
+            mID = await repo.addUser(userID, mName);
+        }
+
+        repo.addQuote( quote, mID, uID, mName)
         .then(resp =>{
             return msg.reply(`Quote added with ID: ${resp.Result}`);
         })

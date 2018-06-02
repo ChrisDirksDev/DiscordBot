@@ -22,7 +22,7 @@ module.exports = class Repo {
                 console.log(resp);
                 if(resp.Error !== null || !resp.Result){
                     log("Connection Down. Attempting to open.");
-                    let resp = await repo.openConnection();
+                    let resp = await this.openConnection();
                     if (resp.Result) {
                         console.log("Connection Established");
                     }else{
@@ -33,7 +33,7 @@ module.exports = class Repo {
             } catch (error) {
                 console.log(error);
             }
-        }, 60000)
+        }, 300000)
     };
 
 
@@ -106,17 +106,34 @@ module.exports = class Repo {
     }
     //#endregion
 
-    async dbGetIDByDID(user){
+    async getIDByDID(id){
         try {
-            console.log("GetIDByTag", user)
-            const resp = await this.client.query(`SELECT * from "GetIDByTag"('${user}')`);
-            let id = -1;
-            if(resp.rowCount > 0){
-               id = parseInt(resp.rows[0].GetIDByTag);
-               console.log("UserExists", id)
-               return {"Result":id, "Error": null}
+            console.log("GetIDByDID", id)
+            const resp = await this.client.query(`SELECT "GetIDByDID"('${id}')`);
+            let uID = -1;
+            if (resp.rows[0].GetIDByDID) {
+                uID = parseInt(resp.rows[0].GetIDByDID);
+                console.log("UserExists", uID)
+                return {"Result":uID, "Error": null}
             }else{
-                return {"Result":id, "Error": "No User Found"}
+                return {"Result":uID, "Error": "No User Found"} 
+            }
+        } catch (error) {
+            await this.closeConnection();
+            throw error;
+        }
+    }
+    async getDIDByID(id){
+        try {
+            console.log("GetIDByDID", id)
+            const resp = await this.client.query(`SELECT "GetDIDByID"('${id}')`);
+            let uID = -1;
+            if (resp.rows[0].GetIDByDID) {
+                uID = parseInt(resp.rows[0].GetIDByDID);
+                console.log("UserExists", uID)
+                return {"Result":uID, "Error": null}
+            }else{
+                return {"Result":uID, "Error": "No User Found"} 
             }
         } catch (error) {
             await this.closeConnection();
@@ -124,12 +141,12 @@ module.exports = class Repo {
         }
     }
 
-    async dbGetSnailCountByID(id){
+    async getSnailCountByID(id){
         try {
-            console.log("CheckForSnailStats", id)
+            console.log("GetSnailCountByID", id)
             const resp = await this.client.query(`SELECT * from "GetSnailCountByID"('${id}')`);
             let count = -1;
-            if(resp.rowCount > 0){
+            if (resp.rows[0].GetSnailCountByID) {
                 count = parseInt(resp.rows[0].GetSnailCountByID);
                 console.log("HasStats", count);
             }else{
@@ -142,10 +159,10 @@ module.exports = class Repo {
         }
     }
     
-    async addUser(tag){
+    async addUser(id, tag){
         try {
-            console.log("addUser")
-            const resp = await this.client.query(`SELECT * from "AddUser"('${tag}')`);
+            console.log("AddUser")
+            const resp = await this.client.query(`SELECT * from "AddUser"('${id}','${tag}')`);
             let uID = resp.rows[0].AddUser;
 
             return {"Result":uID, "Error": null}
@@ -227,7 +244,7 @@ module.exports = class Repo {
             console.log("getAdminLevelByID", id)
             const resp = await this.client.query(`SELECT * from "GetAdminLevelByID"('${id}')`);
             let adminLevel = 1;
-            if(resp.rowCount > 0){
+            if(resp.rows[0].GetAdminLevelByID){
                 adminLevel = parseInt(resp.rows[0].GetAdminLevelByID);
                 console.log("AdminLevel",adminLevel);
             }else{
@@ -251,7 +268,7 @@ module.exports = class Repo {
             
             let adminLevels = [];
             adminLevels = resp.rows.map(row =>{
-                return parseInt(row.adminLevel);
+                return parseInt(row.GetAdminLevels);
             })
 
             console.log(adminLevels);
@@ -314,7 +331,8 @@ module.exports = class Repo {
                 return {
                     "ID": row.quoteID,
                     "User": row.attributedTo,
-                    "Quote": row.quoteText
+                    "Quote": row.quoteText,
+                    "Name" : row.defaultName
                 }
             })
 
@@ -336,7 +354,8 @@ module.exports = class Repo {
                 let id = resp.rows[0].quoteID;
                 let user = resp.rows[0].attributedTo;
                 let quote = resp.rows[0].quoteText;
-                return {"Result":{ "ID": id, "User":user, "Quote":quote}, "Error": null}
+                let name = resp.rows[0].defaultName
+                return {"Result":{ "ID": id, "User":user, "Quote":quote, "Name":name}, "Error": null}
 
             }
         } catch (error) {
@@ -346,10 +365,10 @@ module.exports = class Repo {
 
     }
 
-    async addQuote(user, quote, uID){
+    async addQuote(quote, user, uID, name){
         console.log("AddQuote", user, quote)
         try {
-            const resp = await this.client.query(`SELECT * from "AddQuote"('${user}','${quote}','${uID}')`)
+            const resp = await this.client.query(`SELECT * from "AddQuote"('${quote}','${user}','${uID}','${name}')`)
             return {"Result":resp.rows[0].AddQuote, "Error": null}
         } catch (error) {
             await this.closeConnection(); 
