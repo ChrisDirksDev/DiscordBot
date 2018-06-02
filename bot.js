@@ -57,7 +57,7 @@ initClient = () =>{
     client.on('message', msg => {   
     
         //If debug enabled only communicate with the debug server
-        if (msg.guild.name !== guildCrex.name && config.debug) {
+        if ((msg.guild.name == guildCrex.name && !(config.debug)) || (msg.guild.name == guild13.name && config.debug)) {
             return;
         }
 
@@ -314,16 +314,24 @@ commandSetAdminLevel = async (msg, uID) => {
         }
 
         let userName = mArgs[0].substring(1);
-
+        let userID;
         let filterd = msg.guild.members.filter(member =>{
             return member.displayName == userName;
         })
 
         if (filterd.size != 1) {
-            return;
+            const reg = /<@(.*?)>/;
+            const matched = msg.content.match(reg);
+            if (!matched) {
+                console.log("Could not identify user");
+                return; 
+            }
+            userID = `${matched[1]}`;
+
+        }else{
+            userID = filterd.entries().next().value[0];
         }
 
-        let userID = filterd.entries().next().value[0];
 
         let adminLevel = parseInt(mArgs[1]);
 
