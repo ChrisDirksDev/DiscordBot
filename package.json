@@ -6,10 +6,11 @@
     "author": "Crexfu",
     "dependencies": {
         "discord.js": "^11.3.2",
+        "mocha": "^5.2.0",
         "pg": "^7.4.3"
     },
-    
     "scripts": {
-        "start": "node bot.js"
+        "start": "node Index.js",
+        "test": "mocha test.js"
     }
 }
